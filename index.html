@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tic Tac Toe</title>
+<style>
+body {
+    font-family: Arial, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+}
+
+#game-board {
+    border: 2px solid #000;
+    display: grid;
+    grid-template-columns: repeat(3, 100px);
+    grid-gap: 2px;
+}
+
+.cell {
+    border: 1px solid #000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 36px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.cell:hover {
+    background-color: #f0f0f0;
+}
+
+.scoreboard {
+    margin-top: 20px;
+    text-align: center;
+}
+
+.scoreboard p {
+    margin: 5px;
+}
+</style>
+</head>
+<body>
+<div id="game-board"></div>
+<div class="scoreboard">
+    <p>Player X wins: <span id="playerXWins">0</span></p>
+    <p>Player O wins: <span id="playerOWins">0</span></p>
+    <p>Draws: <span id="draws">0</span></p>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const board = document.getElementById('game-board');
+    const cells = [];
+    const playerSymbols = ['X', 'O'];
+    let currentPlayerIndex = 0;
+    let winner = null;
+    let moves = 0;
+    let playerXWins = 0;
+    let playerOWins = 0;
+    let draws = 0;
+
+    // Initialize the game board
+    for (let i = 0; i < 3; i++) {
+        for (let j = 0; j < 3; j++) {
+            const cell = document.createElement('div');
+            cell.classList.add('cell');
+            cell.dataset.row = i;
+            cell.dataset.col = j;
+            cell.addEventListener('click', handleCellClick);
+            cells.push(cell);
+            board.appendChild(cell);
+        }
+    }
+
+    // Function to handle cell click
+    function handleCellClick() {
+        if (this.textContent !== '' || winner) return;
+        this.textContent = playerSymbols[currentPlayerIndex];
+        moves++;
+        winner = checkWinner(this.dataset.row, this.dataset.col);
+        if (winner) {
+            highlightWinnerCells();
+            updateScoreboard();
+        } else if (moves === 9) {
+            draws++;
+            updateScoreboard();
+        } else {
+            currentPlayerIndex = (currentPlayerIndex + 1) % 2;
+            if (currentPlayerIndex === 1) {
+                setTimeout(makeAIMove, 500);
+            }
+        }
+    }
+
+    // Function to check for a winner
+    function checkWinner(row, col) {
+        const symbol = playerSymbols[currentPlayerIndex];
+        const lines = [
+            [{row: 0, col: 0}, {row: 0, col: 1}, {row: 0, col: 2}], // Rows
+            [{row: 1, col: 0}, {row: 1, col: 1}, {row: 1, col: 2}],
+            [{row: 2, col: 0}, {row: 2, col: 1}, {row: 2, col: 2}],
+            [{row: 0, col: 0}, {row: 1, col: 0}, {row: 2, col: 0}], // Columns
+            [{row: 0, col: 1}, {row: 1, col: 1}, {row: 2, col: 1}],
+            [{row: 0, col: 2}, {row: 1, col: 2}, {row: 2, col: 2}],
+            [{row: 0, col: 0}, {row: 1, col: 1}, {row: 2, col: 2}], // Diagonals
+            [{row: 0, col: 2}, {row: 1, col: 1}, {row: 2, col: 0}]
+        ];
+
+        for (const line of lines) {
+            let count = 0;
+            for (const {row: r, col: c} of line) {
+                if (cells[r * 3 + c] .textContent === symbol) {
+                    count++;
+                }
+            }
+            if (count === 3) return symbol;
+        }
+
+        return null;
+    }
+
+    // Function to highlight winning cells
+    function highlightWinnerCells() {
+        const symbol = playerSymbols[currentPlayerIndex];
+        const winningCells = cells.filter(cell => cell.textContent === symbol);
+        winningCells.forEach(cell => cell.style.color = 'red');
+    }
+
+    // Function to update the scoreboard
+    function updateScoreboard() {
+        if (winner === 'X') {
+            playerXWins++;
+        } else if (winner === 'O') {
+            playerOWins++;
+        }
+        document.getElementById('playerXWins').textContent = playerXWins;
+        document.getElementById('playerOWins').textContent = playerOWins;
+        document.getElementById('draws').textContent = draws;
+    }
+
+    // Function to make AI move
+    function makeAIMove() {
+        const emptyCells = cells.filter(cell => cell.textContent === '');
+        const bestMove = minimax(emptyCells, 'O').index;
+        emptyCells[bestMove].textContent = 'O';
+    }
+
+    // Minimax algorithm for AI move
+    function minimax(emptyCells, player) {
+        const availableMoves = emptyCells.map(cell => cell.dataset.row * 3 + parseInt(cell.dataset.col));
+        const availableMovesIndexes = emptyCells.map((_, index) => index);
+
+        // Base cases
+        if (checkWinner(0, 0) === 'O') {
+            return {score: 10};
+        } else if (checkWinner(0, 0) === 'X') {
+            return {score: -10};
+        } else if (availableMoves.length === 0) {
+            return {score: 0};
+        }
+
+        const moves = [];
+
+        for (let i = 0; i < availableMoves.length; i++) {
+            const move = {};
+            move.index = availableMovesIndexes[i];
+
+            // Try the move
+            emptyCells[move.index].textContent = player;
+
+            if (player === 'O') {
+                const result = minimax(emptyCells, 'X');
+                move.score = result.score;
+            } else {
+                const result = minimax(emptyCells, 'O');
+                move.score = result.score;
+            }
+
+            // Undo the move
+            emptyCells[move.index].textContent = '';
+
+            moves.push(move);
+        }
+
+        // Find the best move
+        let bestMove;
+        if (player === 'O') {
+            let bestScore = -Infinity;
+            for (const move of moves) {
+                if (move.score > bestScore) {
+                    bestScore = move.score;
+                    bestMove = move.index;
+                }
+            }
+        } else {
+            let bestScore = Infinity;
+            for (const move of moves) {
+                if (move.score < bestScore) {
+                    bestScore = move.score;
+                    bestMove = move.index;
+                }
+            }
+        }
+
+        return {score: bestScore, index: bestMove};
+    }
+});
+</script>
+</body>
+</html>
+
